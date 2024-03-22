@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "DarksideLeasingCalc.Queue": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7265"
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "httpPort": 30387,
+      "useSSL": false
+    }
+  }
+}

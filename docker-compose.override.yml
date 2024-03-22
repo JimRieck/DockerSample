@@ -1,0 +1,6 @@
+version: '3.4'
+
+services:
+  darkside.leasingcalc.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development

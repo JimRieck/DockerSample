@@ -1,0 +1,227 @@
+﻿@page "/Queue"
+@inherits fileuploader.ui.Components.AppComponent
+@inject HttpClient Http
+@using Revveriso.Models;
+@using System.Linq;
+@using System.Text
+@using System.Text.Json
+@using System.Diagnostics
+@using System.Globalization
+@using Azure.Storage.Blobs
+@using Revveriso
+@using Darkside.LeasingCalc.Contracts.Helpers
+@using Darkside.LeasingCalc.Contracts.Requests
+@using Darkside.LeasingCalc.Contracts.Response
+
+<PageTitle>Darkside Leasing Calculator - Queue</PageTitle>
+
+<span>
+    @if (IsLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    <MudCard>
+        <MudForm Model="@leaseDetails" @ref="@form">
+            <MudCardContent>
+                <MudTextField @bind-Value="leaseDetails.CarNumber" Immediate="true" Label="Quote Number" />
+                <MudTextField @bind-Value="leaseDetails.CustomerName" Immediate="true" Label="Customer Name" />
+                <MudTextField @bind-Value="leaseDetails.StartDate" Immediate="true" Label="What is the lease starting Date?" />
+                <MudTextField @bind-Value="leaseDetails.StartingMileage" Immediate="true" Label="What was the starting Milage on the car?" />
+                <MudTextField @bind-Value="leaseDetails.TotalYears" Immediate="true" Label="How many years is the lease?" />
+                <MudTextField @bind-Value="leaseDetails.CurrentMileage" Immediate="true" Label="What is the current mileage?" />
+                <MudTextField @bind-Value="leaseDetails.YearlyMiles" Immediate="true" Label="How many miles per year are on the lease?" />
+            </MudCardContent>
+            <MudButton Variant="Variant.Filled" OnClick="GetLeaseInfo" Color="Color.Primary">Search</MudButton>
+        </MudForm>
+    </MudCard>
+    @if (PageHasData)
+    {
+        <div style="display:inline-flex; border:solid 1px">
+            <MudChart ChartType="ChartType.StackedBar" ChartSeries="@BarChartSeries" ChartOptions="Options" LegendPosition="Position.Top" @bind-SelectedIndex="Indexes" XAxisLabels="@BarChartXAxisLabels" Width="100%" Height="550px"></MudChart>
+        </div>
+    }
+    <MudDataGrid Items="@milageDetailsList">
+        <Columns>
+            <PropertyColumn Property="x => x.MileageDate" Format="d" Title="Milage Date" />
+            <PropertyColumn Property="x => x.ExpectedMilesDriven" Title="Expected Miles Driven" />
+            <PropertyColumn Property="x => x.MilesDriven" Title="Actual Miles Driven" />
+            <PropertyColumn Property="x => x.ExpectedMileage" Title="Expected Milage" />
+            <PropertyColumn Property="x => x.ActualMilage" Title="Actual Milage" />
+            <PropertyColumn Property="x => x.MileageDifference" Title="Milage Difference" />
+        </Columns>
+    </MudDataGrid>
+
+    @* <MudImage Src="/images/dark side leasing.jpeg" Width="500" Height="150" Class="rounded-lg ma-4"></MudImage> *@
+    
+   
+</span>
+@code {
+
+        [Parameter] public bool IsLoading { get; set; } = false;
+
+
+        [Inject] private ISnackbar Snackbar { get; set; }
+
+        MudForm form;
+        DailyMileageCalcRequest leaseDetails { get; set; } = new DailyMileageCalcRequest(){StartDate = DateTime.Now.AddDays(-90)};
+    protected bool ShowAlertMessage { get; set; } = true;
+    protected string Message { get; set; } = string.Empty;
+    protected List<FileUploadData> FilesToUpload { get; set; }
+    protected IOrderedEnumerable<DailyMileageDetails> milageDetailsList { get; set; }
+    protected DailyMileageCalcResponse LeaseInfo { get; set; }
+    protected bool ActionInProgress { get; set; } = false;
+    protected string ErrorMessage { get; set; } = string.Empty;
+    protected string UploadMessage { get; set; } = string.Empty;
+    protected string UploadPanelMessage { get; set; } = string.Empty;
+    protected string UploadFileTypes { get; set; } = string.Empty;
+    protected List<string> DocumentTypes { get; set; }
+    protected int FileCount { get; set; } = 0;
+    protected string UploadFileTypesText { get; set; } = string.Empty;
+    protected string SelectedDocumentType { get; set; }
+    protected bool PageHasData { get; set; } = false;
+
+    public List<ChartSeries> BarChartSeries = new List<ChartSeries>()
+    {
+        new() { Name = "Estimated Miles"},
+        new() { Name = "Actual Miles"},
+    };
+    public string[] BarChartXAxisLabels;
+
+    public ChartOptions Options = new ChartOptions(){MaxNumYAxisTicks = 500, YAxisTicks = 500, YAxisLines = false};
+
+    private int Indexes = -1; //default value cannot be 0 -> first selectedindex is 0.
+
+    private void ShowSnackbar(string snackbarMessage, Severity snackbarSeverity)
+    {
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomRight;
+        Snackbar.Add(snackbarMessage, snackbarSeverity, config =>
+        {
+            config.VisibleStateDuration = 30000;
+        });
+    }
+
+    private async Task GetLeaseInfo()
+    {
+        IsLoading = true;
+        var requestData = new DailyMileageCalcRequest()
+        {
+            YearlyMiles = leaseDetails.YearlyMiles,
+            CustomerName = leaseDetails.CustomerName,
+            StartDate = leaseDetails.StartDate,
+            TotalYears = leaseDetails.TotalYears,
+            StartingMileage = leaseDetails.StartingMileage,
+            CurrentMileage = leaseDetails.CurrentMileage,
+            CarNumber = leaseDetails.CarNumber
+        };
+
+        var httpRequest = new HttpRequestMessage()
+        {
+            Method = HttpMethod.Post,
+            RequestUri = new Uri("http://host.docker.internal:30387/api/DarksideLeasingQueue_HttpStart"),
+            Content = new StringContent(JsonSerializer.Serialize(requestData), Encoding.UTF8, "application/json")
+        };
+        try
+        {
+            var sw = new Stopwatch();
+            sw.Start();
+            var apiResponse = await GetQueueFinalResponse(httpRequest);
+
+
+            if (!apiResponse.IsSuccessStatusCode)
+            {
+                throw new Exception($"API call to {httpRequest.RequestUri}. Reason: {apiResponse.StatusCode} - {apiResponse.ReasonPhrase}");
+            }
+            else
+            {
+                var responseString = await apiResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var result = JsonSerializer.Deserialize<DailyMileageCalcResponse>(responseString);
+                milageDetailsList = result.DailyMilageDetails.ToList().OrderBy(p => p.MileageDate);
+                LeaseInfo = result;
+                BuildGraph();
+
+                ShowAlertMessage = true;
+                Message = $"Quote Number {LeaseInfo.CarNumber} :  Starting Mileage is {LeaseInfo.StartingMileage} on {LeaseInfo.StartDateTime.Date.ToShortDateString()} for {LeaseInfo.TotalYears} year and {LeaseInfo.YearlyMiles} per year.";
+                sw.Stop();
+                StateHasChanged();
+                ShowSnackbar(Message, Severity.Success);
+            }
+            IsLoading = false;
+            PageHasData = true;
+        }
+        catch (Exception e)
+        {
+            ShowSnackbar($"Opps something went wrong.... {e.Message}.", Severity.Error);
+            IsLoading = false;
+            throw;
+        }
+    }
+
+    private async Task<HttpResponseMessage> GetQueueFinalResponse(HttpRequestMessage httpRequest)
+    {
+        var queueResponse = await Http.SendAsync(httpRequest);
+        if (!queueResponse.IsSuccessStatusCode)
+        {
+            throw new Exception($"API call to {httpRequest.RequestUri}. Reason: {queueResponse.StatusCode} - {queueResponse.ReasonPhrase}");
+        }
+        else
+        {
+            var finalResponseString = await queueResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var result = JsonSerializer.Deserialize<QueueStatusResponse>(finalResponseString);
+            var finalQueueResponse = new HttpResponseMessage();
+            var counter = 0;
+            do
+            {
+                var queueStatusRequest = new HttpRequestMessage()
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(result.statusQueryGetUri),
+                };
+                finalQueueResponse = await Http.SendAsync(queueStatusRequest);
+                
+                counter++;
+                Thread.Sleep(1000);
+            } while (counter <= 10);
+            
+            finalResponseString = await finalQueueResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var jDoc = JsonDocument.Parse(finalResponseString);
+            jDoc.RootElement.TryGetProperty("output", out JsonElement message);
+
+            var jFinalDoc = JsonDocument.Parse(message.ToString());
+            jFinalDoc.RootElement.TryGetProperty("DailyMilageDetails", out JsonElement finalMessage);
+        }
+
+        return null;
+    }
+
+    private void BuildGraph()
+    {
+        var counter = 0;
+
+        //Generate data for bar chart.
+        var monthlyTotalMiles = from record in milageDetailsList
+            group record by new { Year = record.MileageDate.Year, Month = record.MileageDate.Month } into grouped
+            select new
+            {
+                Year = grouped.Key.Year,
+                Month = grouped.Key.Month,
+                MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetAbbreviatedMonthName(grouped.Key.Month),
+                TotalActualMiles = grouped.Sum(r => r.MilesDriven),
+                TotalEstimatedMiles = grouped.Sum(r => r.ExpectedMilesDriven),
+            };
+
+        monthlyTotalMiles = monthlyTotalMiles.ToList();
+        BarChartSeries[0].Data = new double[monthlyTotalMiles.Count()];
+        BarChartSeries[1].Data = new double[monthlyTotalMiles.Count()];
+        BarChartXAxisLabels = new string[monthlyTotalMiles.Count()];
+        counter = 0;
+        foreach (var month in monthlyTotalMiles)
+        {
+            BarChartXAxisLabels[counter] = month.MonthName;
+            BarChartSeries[0].Data[counter] = month.TotalEstimatedMiles;
+            BarChartSeries[1].Data[counter] = month.TotalActualMiles;
+            counter++;
+        }
+    }
+
+
+ }

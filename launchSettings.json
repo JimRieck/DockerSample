@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "Docker Compose": {
+      "commandName": "DockerCompose",
+      "commandVersion": "1.0",
+      "serviceActions": {
+        "fileupload.api": "StartDebugging",
+        "fileuploader.ui": "StartDebugging",
+        "darkside.leasingcalc.api": "StartDebugging",
+        "darkside.leasingcalc.ui": "StartDebugging",
+        "darksideleasingcalc.queue": "StartDebugging"
+      }
+    }
+  }
+}

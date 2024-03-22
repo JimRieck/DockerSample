@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>RevverDigital.Common.Data</PackageId>
+    <PackageDescription>A common package for easily creating repositories that work with Entity Framework.</PackageDescription>
+    <PackageProjectUrl>https://dev.azure.com/OneWater-Marine/Revver%20Digital/_git/RevverDigital.Common.Data</PackageProjectUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReleaseNotes></PackageReleaseNotes>
+    <PackageTags>revver revverdigital common data</PackageTags>
+    <PackageVersion>1.4.0</PackageVersion>
+    <PublishRepositoryUrl>True</PublishRepositoryUrl>
+    <Version>1.4.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.2" />
+  </ItemGroup>
+
+</Project>

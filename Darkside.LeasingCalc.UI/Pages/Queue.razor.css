@@ -1,0 +1,53 @@
+﻿::deep .mud-input-control-input-container {
+    border: 2px dashed black;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: whitesmoke;
+    font-size: 1.5rem;
+    cursor: pointer;
+    position: relative;
+    min-height: 125px;
+    horiz-align: center;
+    background-color: white;
+}
+
+::deep .mud-input-control-input-container:hover {
+    background-color: white;
+    color: #333;
+}
+
+::deep .mud-input-control-input-container input[type=file] {
+    position: absolute;
+    width: 80%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+::deep .mud-paper {
+    border: none !important;
+}
+
+::deep .mud-paper > h6 {
+    text-align: center;
+}
+
+::deep .noteButton {
+    background-color: #ca4012;
+    color: white;
+    margin-top: 20px;
+}
+
+::deep .note-column-width {
+    width: 60%;
+}
+
+::deep .note-column-align {
+    vertical-align: text-top;
+}
+
+::deep .html-editor {
+    padding: 4px;
+}

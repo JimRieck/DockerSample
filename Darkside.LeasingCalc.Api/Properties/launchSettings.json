@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "FileUpload.Api": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7051"
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "httpPort": 32944,
+      "useSSL": false
+    }
+  }
+}

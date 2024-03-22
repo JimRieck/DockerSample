@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  darkside.leasingcalc.api:
+    image: ${DOCKER_REGISTRY-}darksideleasingcalcapi
+    networks:
+      - darkside
+    build:
+      context: .
+      dockerfile: Darkside.LeasingCalc.Api/Dockerfile
+
+  darkside.leasingcalc.ui:
+    image: ${DOCKER_REGISTRY-}darksideleasingcalcui
+    networks:
+      - darkside
+    build:
+      context: .
+      dockerfile: Darkside.LeasingCalc.UI/Dockerfile
+
+  darkside.leasingcalc.db:
+     image: mcr.microsoft.com/mssql/server:2022-latest
+     networks:
+      - darkside
+     ports:
+      - 3629:1433
+     volumes:
+      - darkside-leasing-volume:/var/opt/mssql/darksideleasing
+     environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=myPassword123
+ 
+
+  darksideleasingcalc.queue:
+    image: ${DOCKER_REGISTRY-}darksideleasingcalcqueue
+    networks:
+      - darkside
+    build:
+      context: .
+      dockerfile: DarksideLeasingCalc.Queue/Dockerfile
+
+volumes:
+  darkside-leasing-volume:
+    external: true
+
+networks:
+    darkside:
+      driver: bridge
